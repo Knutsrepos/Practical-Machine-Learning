@@ -1,0 +1,50 @@
+---
+title: "Weight Lifting Exercises"
+output: pdf_document
+---
+####Predicts how well the weight lifting exercise is performed using human activity recognition data. See http://groupware.les.inf.puc-rio.br/har for more information.
+
+Load Package, set the working directory and the seed
+```{r,eval=FALSE}
+library(caret)
+setwd("/Your Path/")
+set.seed(123)
+```
+
+Load the data, exclude columns containing NA's and delete the first seven columns since they do not contain useful predictors.
+```{r,eval=FALSE}
+data = read.csv("pml-training.csv", na.strings = c("NA", "","<NA>"))
+data<-data[,colSums(is.na(data))==0]
+data<-data[,-(1:7)]
+```
+
+Delete highly correlated Predictors (column 53 is excluded since it contains the performance classe which should be predicted)
+```{r,eval=FALSE}
+correlationMatrix=cor(data[,-53])
+highlyCorr<-findCorrelation(correlationMatrix,cutoff=0.9)
+data<-data[,-highlyCorr]
+```
+
+Divide data into a training and a test set
+```{r,eval=FALSE}
+inTrain<-createDataPartition(y=data$classe,p=0.6,list=FALSE)
+training<-data[inTrain,]
+testing<-data[-inTrain,]
+```
+
+Fit the model to the training set using stochastic gradient boosting ("gbm"). The data is centered and scaled taking care of zero and near zero variance predictors.
+```{r,eval=FALSE}
+modelFit<-train(classe~.,data=training,preProcess=c("center","scale"),method="gbm")
+```
+
+Predict the outcome for the test data
+```{r,eval=FALSE}
+predFit<-predict(modelFit,newdata=testing)
+```
+
+Compute the confusion matrix and determine the accuracy (true classification divided by all outcomes) on the test set poviding a measure for the out of sample error.
+```{r}
+confusionMatrix<-table(testing$classe,predFit)
+sum(diag(confusionMatrix))/sum(confusionMatrix)
+```
+An out of sample accuracy of about 96% seems okay for me. All 20 test cases were predicted correctly.    
